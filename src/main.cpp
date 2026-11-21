@@ -1,3 +1,5 @@
+// 0.3.7-R1
+
 #include <windows.h>
 #include <cstdio>
 #include <cwchar>
@@ -26,10 +28,6 @@ namespace Core {
         FreeLibraryAndExitThread(hSelf, 0);
         return 0;
     }
-
-    void WriteTestLog(const stSettings& cfg) {
-        CreateDirectoryA(".\\SAMP", nullptr);
-
     void OnSampLoaded(HMODULE hMod) {
         sampBase = reinterpret_cast<uintptr_t>(hMod);
         if (!IsSampR1(sampBase)) {
@@ -38,7 +36,6 @@ namespace Core {
             return;
         }
         pSettings = new CSettings();
-        WriteTestLog(pSettings->GetReadOnly());
     }
 
     bool IsSampDllW(LPCWSTR path) {

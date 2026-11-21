@@ -1,7 +1,6 @@
-
 #include <windows.h>
 #include <cstdio>
-#include <cstring>
+#include <cwchar>
 #include "MinHook.h"
 #include "CSettings.h"
 
@@ -10,14 +9,14 @@ namespace Core {
     uintptr_t sampBase = 0;
     CSettings* pSettings = nullptr;
 
-    using LoadLibraryA_t = HMODULE(WINAPI*)(LPCSTR);
-    LoadLibraryA_t origLoadLibraryA = nullptr;
+    using LoadLibraryExW_t = HMODULE(WINAPI*)(LPCWSTR, HANDLE, DWORD);
+    LoadLibraryExW_t origLoadLibraryExW = nullptr;
 
     bool IsSampR1(uintptr_t base) {
         auto dos = reinterpret_cast<PIMAGE_DOS_HEADER>(base);
         if (dos->e_magic != IMAGE_DOS_SIGNATURE) return false;
         auto nt = reinterpret_cast<PIMAGE_NT_HEADERS>(base + dos->e_lfanew);
-        return nt->Signature == IMAGE_NT_SIGNATURE && 
+        return nt->Signature == IMAGE_NT_SIGNATURE &&
                nt->OptionalHeader.AddressOfEntryPoint == 0x31DF13;
     }
 
@@ -29,6 +28,7 @@ namespace Core {
     }
 
     void WriteTestLog(const stSettings& cfg) {
+        CreateDirectoryA(".\\SAMP", nullptr);
         FILE* f = fopen(".\\SAMP\\samp_test.txt", "w");
         if (f) {
             fprintf(f, "Plugin loaded successfully! SA-MP 0.3.7-R1 confirmed.\n");
@@ -41,25 +41,30 @@ namespace Core {
         }
     }
 
-
-    void OnSampLoaded() {
+    void OnSampLoaded(HMODULE hMod) {
+        sampBase = reinterpret_cast<uintptr_t>(hMod);
+        if (!IsSampR1(sampBase)) {
+            HANDLE hThread = CreateThread(nullptr, 0, UnloadThread, nullptr, 0, nullptr);
+            if (hThread) CloseHandle(hThread);
+            return;
+        }
         pSettings = new CSettings();
         WriteTestLog(pSettings->GetReadOnly());
     }
 
-    HMODULE WINAPI Hooked_LoadLibraryA(LPCSTR lpLibFileName) {
-        HMODULE hMod = origLoadLibraryA(lpLibFileName);
+    bool IsSampDllW(LPCWSTR path) {
+        if (!path) return false;
+        const wchar_t* fileName = wcsrchr(path, L'\\');
+        if (!fileName) fileName = wcsrchr(path, L'/');
+        fileName = fileName ? fileName + 1 : path;
+        return _wcsicmp(fileName, L"samp.dll") == 0;
+    }
 
-        if (hMod && !sampBase && lpLibFileName && strstr(lpLibFileName, "samp.dll")) {
-            sampBase = reinterpret_cast<uintptr_t>(hMod);
-            MH_DisableHook(&LoadLibraryA);
+    HMODULE WINAPI Hooked_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags) {
+        HMODULE hMod = origLoadLibraryExW(lpLibFileName, hFile, dwFlags);
 
-            if (!IsSampR1(sampBase)) {
-                CreateThread(nullptr, 0, UnloadThread, nullptr, 0, nullptr);
-                return hMod;
-            }
-
-            OnSampLoaded();
+        if (hMod && !sampBase && IsSampDllW(lpLibFileName)) {
+            OnSampLoaded(hMod);
         }
         return hMod;
     }
@@ -67,12 +72,26 @@ namespace Core {
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) {
+        FILE* f = fopen("C:\\Users\\Public\\plugin_alive.txt", "w");
+        if (f) {
+            char path[MAX_PATH];
+            GetModuleFileNameA(nullptr, path, MAX_PATH);
+            fprintf(f, "DLL loaded! Game path: %s\n", path);
+            fclose(f);
+        }
+
         Core::hSelf = hModule;
         DisableThreadLibraryCalls(hModule);
 
+        HMODULE hSamp = GetModuleHandleA("samp.dll");
+        if (hSamp) {
+            Core::OnSampLoaded(hSamp);
+            return TRUE;
+        }
+
         if (MH_Initialize() == MH_OK) {
-            MH_CreateHook(&LoadLibraryA, &Core::Hooked_LoadLibraryA, reinterpret_cast<void**>(&Core::origLoadLibraryA));
-            MH_EnableHook(&LoadLibraryA);
+            MH_CreateHookApi(L"kernel32", "LoadLibraryExW", &Core::Hooked_LoadLibraryExW, reinterpret_cast<void**>(&Core::origLoadLibraryExW));
+            MH_EnableHook(MH_ALL_HOOKS);
         }
     }
     else if (reason == DLL_PROCESS_DETACH) {

@@ -1,0 +1,26 @@
+name: Build libsamp.asi
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure CMake (Win32 / x86)
+        run: cmake -B build -A Win32
+
+      - name: Build Release ASI
+        run: cmake --build build --config Release
+
+      - name: Upload libsamp.asi
+        uses: actions/upload-artifact@v4
+        with:
+          name: libsamp-asi
+          path: build/Release/libsamp.asi
+
+

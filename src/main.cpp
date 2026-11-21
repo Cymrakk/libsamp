@@ -29,17 +29,6 @@ namespace Core {
 
     void WriteTestLog(const stSettings& cfg) {
         CreateDirectoryA(".\\SAMP", nullptr);
-        FILE* f = fopen(".\\SAMP\\samp_test.txt", "w");
-        if (f) {
-            fprintf(f, "Plugin loaded successfully! SA-MP 0.3.7-R1 confirmed.\n");
-            fprintf(f, "--------------------------------------------------\n");
-            fprintf(f, "NickName: %s\n", cfg.szNickName);
-            fprintf(f, "Host:     %s\n", cfg.szHost);
-            fprintf(f, "Port:     %d\n", cfg.iPort);
-            fprintf(f, "Password: %s\n", cfg.szPassword ? cfg.szPassword : "(empty)");
-            fclose(f);
-        }
-    }
 
     void OnSampLoaded(HMODULE hMod) {
         sampBase = reinterpret_cast<uintptr_t>(hMod);
@@ -72,14 +61,6 @@ namespace Core {
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) {
-        FILE* f = fopen("C:\\Users\\Public\\plugin_alive.txt", "w");
-        if (f) {
-            char path[MAX_PATH];
-            GetModuleFileNameA(nullptr, path, MAX_PATH);
-            fprintf(f, "DLL loaded! Game path: %s\n", path);
-            fclose(f);
-        }
-
         Core::hSelf = hModule;
         DisableThreadLibraryCalls(hModule);
 

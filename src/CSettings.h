@@ -1,4 +1,3 @@
-
 #pragma once
 #include <cstdint>
 
@@ -26,6 +25,8 @@ public:
     stSettings& GetWrite() { return m_Settings; }
 
 private:
+    static bool ReadBool(const char* section, const char* key, bool defVal);
+
     stSettings m_Settings{};
     static constexpr const char* CONFIG_PATH = ".\\SAMP\\samp.ini";
 };

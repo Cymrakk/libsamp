@@ -1,10 +1,10 @@
 // 0.3.7-R1
 
 #include <windows.h>
-#include <cstdio>
 #include <cwchar>
 #include "MinHook.h"
 #include "CSettings.h"
+#include "CLogger.h"
 
 namespace Core {
     HMODULE hSelf = nullptr;
@@ -23,19 +23,39 @@ namespace Core {
     }
 
     DWORD WINAPI UnloadThread(LPVOID) {
+        Sleep(50); // Даем вызывающей функции безопасно завершиться
+        CLogger::Log("LibSamp unload");
+        CLogger::Shutdown();
+
         MH_DisableHook(MH_ALL_HOOKS);
         MH_Uninitialize();
         FreeLibraryAndExitThread(hSelf, 0);
         return 0;
     }
+
     void OnSampLoaded(HMODULE hMod) {
         sampBase = reinterpret_cast<uintptr_t>(hMod);
+        CLogger::Log("Samp.dll base - 0x%X", sampBase);
+
         if (!IsSampR1(sampBase)) {
+            CLogger::Log("Incorrect SA-MP version! Expected 0.3.7-R1.");
             HANDLE hThread = CreateThread(nullptr, 0, UnloadThread, nullptr, 0, nullptr);
             if (hThread) CloseHandle(hThread);
             return;
         }
+
+        CLogger::Log("Loading settings...");
         pSettings = new CSettings();
+
+        const auto& cfg = pSettings->GetReadOnly();
+        CLogger::Log("Settings loaded! Nick: %s | Server: %s:%d | FPSCounter: %s | ChatLines: %d | FontSize: %d",
+            cfg.szNickName, cfg.szHost, cfg.iPort,
+            cfg.bFPSCounter ? "true" : "false", cfg.iChatLines, cfg.iChatFontSize);
+    }
+
+    DWORD WINAPI InitThread(LPVOID lpParam) {
+        OnSampLoaded(static_cast<HMODULE>(lpParam));
+        return 0;
     }
 
     bool IsSampDllW(LPCWSTR path) {
@@ -49,8 +69,10 @@ namespace Core {
     HMODULE WINAPI Hooked_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags) {
         HMODULE hMod = origLoadLibraryExW(lpLibFileName, hFile, dwFlags);
 
-        if (hMod && !sampBase && IsSampDllW(lpLibFileName)) {
-            OnSampLoaded(hMod);
+        if (hMod && !sampBase && !(dwFlags & (LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE))) {
+            if (IsSampDllW(lpLibFileName)) {
+                OnSampLoaded(hMod);
+            }
         }
         return hMod;
     }
@@ -61,9 +83,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
         Core::hSelf = hModule;
         DisableThreadLibraryCalls(hModule);
 
+        CLogger::Init();
+        CLogger::Log("LibSamp started!");
+
         HMODULE hSamp = GetModuleHandleA("samp.dll");
         if (hSamp) {
-            Core::OnSampLoaded(hSamp);
+            HANDLE hThread = CreateThread(nullptr, 0, Core::InitThread, hSamp, 0, nullptr);
+            if (hThread) CloseHandle(hThread);
             return TRUE;
         }
 
@@ -75,7 +101,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
     else if (reason == DLL_PROCESS_DETACH) {
         delete Core::pSettings;
         Core::pSettings = nullptr;
+
+        CLogger::Log("LibSamp unload");
+        CLogger::Shutdown();
+
+        MH_DisableHook(MH_ALL_HOOKS);
         MH_Uninitialize();
     }
     return TRUE;
 }
+

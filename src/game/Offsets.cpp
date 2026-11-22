@@ -31,7 +31,7 @@ namespace Offsets {
             Addr.fnSay                   = sampBase + 0x57F0;
             Addr.fnSendCommand           = sampBase + 0x65C60;
             Addr.fnShowDialog          = sampBase + 0x6B9C0;
-            Addr.fnCNetGameConstructor = sampBase + 0x8050; // <-- R1
+            Addr.fnCNetGameConstructor = sampBase + 0x85A0; // <-- R1
             // Смещения структур (R1)
             Addr.offRakClientInterface = 0x3C9;
             Addr.offPools              = 0x3CD;
@@ -55,8 +55,8 @@ namespace Offsets {
             Addr.fnSay                   = sampBase + 0x5820;
             Addr.fnSendCommand           = sampBase + 0x691B0;
             Addr.fnShowDialog          = sampBase + 0x6F8C0;
-            Addr.fnCNetGameConstructor = sampBase + 0x8470; // <-- R3-1
-            
+            Addr.fnCNetGameConstructor = sampBase + 0x89C0; // <-- R3-1
+
             // Смещения структур (R3-1)
             Addr.offRakClientInterface = 0x2C;
             Addr.offPools              = 0x3DE;

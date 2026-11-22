@@ -25,7 +25,7 @@ namespace Offsets {
             Addr.pDialogInfo = sampBase + 0x21A0B8;
 
             // Функции (R1)
-            Addr.fnAddChatMessage        = sampBase + 0x64010;
+            Addr.fnAddEntry                 = sampBase + 0x64010;
             Addr.fnAddMessage            = sampBase + 0x645A0;
             Addr.fnRegisterClientCommand = sampBase + 0x65AD0;
             Addr.fnSay                   = sampBase + 0x57F0;
@@ -49,7 +49,7 @@ namespace Offsets {
             Addr.pDialogInfo = sampBase + 0x26E898;
 
             // Функции (R3-1)
-            Addr.fnAddChatMessage        = sampBase + 0x67460;
+            Addr.fnAddEntry        = sampBase + 0x67460;
             Addr.fnAddMessage            = sampBase + 0x679F0;
             Addr.fnRegisterClientCommand = sampBase + 0x69000;
             Addr.fnSay                   = sampBase + 0x5820;

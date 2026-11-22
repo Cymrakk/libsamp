@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS // Отключает ошибку C4996 для fopen в MSVC
 #include "CSettings.h"
 #include <windows.h>
 #include <cstdio>
@@ -8,7 +9,7 @@ CSettings::CSettings() {
 }
 
 bool CSettings::ReadBool(const char* section, const char* key, bool defVal) {
-    char szBuf = { 0 };
+    char szBuf[16] = { 0 };
     GetPrivateProfileStringA(section, key, defVal ? "true" : "false", szBuf, sizeof(szBuf), CONFIG_PATH);
     return (_stricmp(szBuf, "true") == 0 || strcmp(szBuf, "1") == 0);
 }
@@ -17,7 +18,7 @@ void CSettings::ToDefaults() {
     snprintf(m_Settings.szNickName, sizeof(m_Settings.szNickName), "Player_Cymrakk");
     snprintf(m_Settings.szHost, sizeof(m_Settings.szHost), "127.0.0.1");
     m_Settings.iPort = 7777;
-    m_Settings.szPassword = '\0';
+    m_Settings.szPassword[0] = '\0';
     m_Settings.bFPSCounter = false;
     m_Settings.iChatLines = 10;
     m_Settings.iChatFontSize = 0;

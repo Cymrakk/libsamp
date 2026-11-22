@@ -5,6 +5,7 @@
 #include "MinHook.h"
 #include "CSettings.h"
 #include "CLogger.h"
+#include "game/Offsets.h"
 
 namespace Core {
     HMODULE hSelf = nullptr;
@@ -23,7 +24,7 @@ namespace Core {
     }
 
     DWORD WINAPI UnloadThread(LPVOID) {
-        Sleep(50); // Даем вызывающей функции безопасно завершиться
+        Sleep(50);
         CLogger::Log("LibSamp unload");
         CLogger::Shutdown();
 
@@ -35,22 +36,22 @@ namespace Core {
 
     void OnSampLoaded(HMODULE hMod) {
         sampBase = reinterpret_cast<uintptr_t>(hMod);
-        CLogger::Log("Samp.dll base - 0x%X", sampBase);
+        CLogger::Log("samp.dll base - 0x%X", sampBase);
 
-        if (!IsSampR1(sampBase)) {
-            CLogger::Log("Incorrect SA-MP version! Expected 0.3.7-R1.");
+        if (!Offsets::Init(sampBase)) {
+            CLogger::Log("Unsupported SA-MP version! Unloading...");
             HANDLE hThread = CreateThread(nullptr, 0, UnloadThread, nullptr, 0, nullptr);
             if (hThread) CloseHandle(hThread);
             return;
         }
 
+        CLogger::Log("Detected SA-MP version: %s", Offsets::GetVersionName());
+
         CLogger::Log("Loading settings...");
         pSettings = new CSettings();
 
         const auto& cfg = pSettings->GetReadOnly();
-        CLogger::Log("Settings loaded! Nick: %s | Server: %s:%d | FPSCounter: %s | ChatLines: %d | FontSize: %d",
-            cfg.szNickName, cfg.szHost, cfg.iPort,
-            cfg.bFPSCounter ? "true" : "false", cfg.iChatLines, cfg.iChatFontSize);
+        CLogger::Log("Settings loaded!");
     }
 
     DWORD WINAPI InitThread(LPVOID lpParam) {
@@ -85,7 +86,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 
         CLogger::Init();
         CLogger::Log("LibSamp started!");
-
+        CLogger::Log("made by Cymrakk");
+        CLogger::Log("GitHub: https://github.com/Cymrakk/libsamp");
+        CLogger::Log(" ");
         HMODULE hSamp = GetModuleHandleA("samp.dll");
         if (hSamp) {
             HANDLE hThread = CreateThread(nullptr, 0, Core::InitThread, hSamp, 0, nullptr);

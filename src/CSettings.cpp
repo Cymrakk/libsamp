@@ -1,8 +1,9 @@
-#define _CRT_SECURE_NO_WARNINGS // Отключает ошибку C4996 для fopen в MSVC
+#define _CRT_SECURE_NO_WARNINGS //C4996 fix
 #include "CSettings.h"
 #include <windows.h>
 #include <cstdio>
 #include <cstring>
+#include "CLogger.h"
 
 CSettings::CSettings() {
     Load();

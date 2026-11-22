@@ -16,7 +16,7 @@ struct stOffsets {
     uintptr_t pDialogInfo = 0;
 
     // Функции (с прибавленным sampBase)
-    uintptr_t fnAddChatMessage        = 0;
+    uintptr_t fnAddEntry         = 0;
     uintptr_t fnAddMessage            = 0;
     uintptr_t fnRegisterClientCommand = 0;
     uintptr_t fnSay                   = 0;

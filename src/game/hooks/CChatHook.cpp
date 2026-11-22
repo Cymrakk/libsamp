@@ -6,6 +6,7 @@
 #include <cstring>
 #include <cstdio>
 
+// nType= 2 - игроки | 4 - сервер | 8 - дебаг
 namespace CChatHook {
     using AddEntry_t = void(__thiscall*)(CChat*, int, const char*, const char*, uint32_t, uint32_t);
     AddEntry_t origAddEntry = nullptr;

@@ -7,21 +7,21 @@
 #include <cstdio>
 
 namespace CChatHook {
-    using AddMessage_t = void(__thiscall*)(CChat*, uint32_t, const char*);
-    AddMessage_t origAddMessage = nullptr;
+    using AddEntry_t = void(__thiscall*)(CChat*, int, const char*, const char*, uint32_t, uint32_t);
+    AddEntry_t origAddEntry = nullptr;
 
-    void __fastcall Hooked_AddMessage(CChat* pThis, void* /*edx*/, uint32_t color, const char* szText) {
+    void __fastcall Hooked_AddEntry(CChat* pThis, void* /*edx*/, int nType, const char* szText, const char* szPrefix, uint32_t textColor, uint32_t prefixColor) {
         if (!szText) {
-            origAddMessage(pThis, color, szText);
+            origAddEntry(pThis, nType, szText, szPrefix, textColor, prefixColor);
             return;
         }
 
         char szTranslated[256] = { 0 };
         const char* outText = szText;
 
-        // 1. Точные совпадения
+        // Системные сообщения клиента обычно имеют nType == 2 (или 8 для debug)
         if (strcmp(szText, "Connected. Joining the game...") == 0) {
-            outText = "Подключено. Подготовка к игре...";
+            outText = "Подключено. Вход в игру...";
         }
         else if (strcmp(szText, "The server didn't respond. Retrying..") == 0) {
             outText = "Сервер не отвечает. Повторная попытка...";
@@ -50,48 +50,40 @@ namespace CChatHook {
         else if (strcmp(szText, "I'm sorry, that's an invalid command.") == 0) {
             outText = "Извините, такой команды не существует.";
         }
-        // 2. Шаблоны с параметрами (IP, порт, название сервера, скриншот)
         else if (strncmp(szText, "SA-MP ", 6) == 0 && strstr(szText, "Started")) {
             snprintf(szTranslated, sizeof(szTranslated), "SA-MP %s запущен (LibSamp)", Offsets::GetVersionName());
             outText = szTranslated;
         }
         else if (strncmp(szText, "Connecting to ", 14) == 0) {
-            // Оригинал: "Connecting to 127.0.0.1:7777..."
-            const char* addrPart = szText + 14;
-            snprintf(szTranslated, sizeof(szTranslated), "Подключение к %s", addrPart);
+            snprintf(szTranslated, sizeof(szTranslated), "Подключение к %s", szText + 14);
             outText = szTranslated;
         }
         else if (strncmp(szText, "Connected to ", 13) == 0) {
-            // Оригинал: "Connected to Server Name"
-            const char* serverName = szText + 13;
-            snprintf(szTranslated, sizeof(szTranslated), "Вы подключились к %s", serverName);
+            snprintf(szTranslated, sizeof(szTranslated), "Вы подключились к %s", szText + 13);
             outText = szTranslated;
         }
         else if (strncmp(szText, "Screenshot Taken - ", 19) == 0) {
-            // Оригинал: "Screenshot Taken - sa-mp-000.png"
-            const char* fileName = szText + 19;
-            snprintf(szTranslated, sizeof(szTranslated), "Скриншот сохранён - %s", fileName);
+            snprintf(szTranslated, sizeof(szTranslated), "Скриншот сохранён - %s", szText + 19);
             outText = szTranslated;
         }
 
-        // Вызываем оригинал, сохраняя исходный color
-        origAddMessage(pThis, color, outText);
+        origAddEntry(pThis, nType, outText, szPrefix, textColor, prefixColor);
     }
 
     void Install() {
-        if (!Offsets::Addr.fnAddMessage) return;
+        if (!Offsets::Addr.fnAddEntry) return;
 
-        LPVOID target = reinterpret_cast<LPVOID>(Offsets::Addr.fnAddMessage);
-        if (MH_CreateHook(target, &Hooked_AddMessage, reinterpret_cast<void**>(&origAddMessage)) == MH_OK) {
+        LPVOID target = reinterpret_cast<LPVOID>(Offsets::Addr.fnAddEntry);
+        if (MH_CreateHook(target, &Hooked_AddEntry, reinterpret_cast<void**>(&origAddEntry)) == MH_OK) {
             MH_EnableHook(target);
-            CLogger::Log("CChatHook installed at 0x%X", Offsets::Addr.fnAddMessage);
+            CLogger::Log("CChatHook installed at 0x%X", Offsets::Addr.fnAddEntry);
         } else {
             CLogger::Log("Failed to install CChatHook!");
         }
     }
 
     void Remove() {
-        if (!Offsets::Addr.fnAddMessage) return;
-        MH_DisableHook(reinterpret_cast<LPVOID>(Offsets::Addr.fnAddMessage));
+        if (!Offsets::Addr.fnAddEntry) return;
+        MH_DisableHook(reinterpret_cast<LPVOID>(Offsets::Addr.fnAddEntry));
     }
 }

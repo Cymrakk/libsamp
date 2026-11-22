@@ -8,23 +8,24 @@ enum class SampVersion {
 };
 
 struct stOffsets {
-    // Глобальные указатели (уже с прибавленным sampBase)
-    uintptr_t pSampInfo = 0;
-    uintptr_t pChatInfo = 0;
-    uintptr_t pInputInfo = 0;
-    uintptr_t pKillInfo = 0;
+    // Глобальные указатели (с прибавленным sampBase)
+    uintptr_t pSampInfo   = 0;
+    uintptr_t pChatInfo   = 0;
+    uintptr_t pInputInfo  = 0;
+    uintptr_t pKillInfo   = 0;
     uintptr_t pDialogInfo = 0;
 
-    // Функции (уже с прибавленным sampBase)
-    uintptr_t fnAddChatMessage = 0;
+    // Функции (с прибавленным sampBase)
+    uintptr_t fnAddChatMessage        = 0;
+    uintptr_t fnAddMessage            = 0;
     uintptr_t fnRegisterClientCommand = 0;
-    uintptr_t fnSay = 0;
-    uintptr_t fnSendCommand = 0;
-    uintptr_t fnShowDialog = 0;
+    uintptr_t fnSay                   = 0;
+    uintptr_t fnSendCommand           = 0;
+    uintptr_t fnShowDialog            = 0;
 
-    // Смещения внутри структур (относительные, без sampBase)
+    // Смещения внутри структур (относительные)
     uintptr_t offRakClientInterface = 0;
-    uintptr_t offPools = 0;
+    uintptr_t offPools              = 0;
 };
 
 namespace Offsets {

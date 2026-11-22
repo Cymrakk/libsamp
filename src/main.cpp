@@ -6,6 +6,7 @@
 #include "CSettings.h"
 #include "CLogger.h"
 #include "game/Offsets.h"
+#include "game/Hooks.h"
 
 namespace Core {
     HMODULE hSelf = nullptr;
@@ -52,6 +53,8 @@ namespace Core {
 
         const auto& cfg = pSettings->GetReadOnly();
         CLogger::Log("Settings loaded!");
+        Hooks::Init();
+        CLogger::Log("All Hooks set up!");
     }
 
     DWORD WINAPI InitThread(LPVOID lpParam) {
@@ -87,8 +90,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
         CLogger::Init();
         CLogger::Log("LibSamp started!");
         CLogger::Log("made by Cymrakk");
-        CLogger::Log("GitHub: https://github.com/Cymrakk/libsamp");
+        CLogger::Log("GitHub: https://github.com");
         CLogger::Log(" ");
+
         HMODULE hSamp = GetModuleHandleA("samp.dll");
         if (hSamp) {
             HANDLE hThread = CreateThread(nullptr, 0, Core::InitThread, hSamp, 0, nullptr);
@@ -102,15 +106,18 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
         }
     }
     else if (reason == DLL_PROCESS_DETACH) {
+        Hooks::Shutdown();
+        MH_DisableHook(MH_ALL_HOOKS);
+        MH_Uninitialize();
+
         delete Core::pSettings;
         Core::pSettings = nullptr;
 
         CLogger::Log("LibSamp unload");
         CLogger::Shutdown();
-
-        MH_DisableHook(MH_ALL_HOOKS);
-        MH_Uninitialize();
     }
     return TRUE;
 }
+
+
 

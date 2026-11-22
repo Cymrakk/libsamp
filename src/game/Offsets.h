@@ -16,12 +16,13 @@ struct stOffsets {
     uintptr_t pDialogInfo = 0;
 
     // Функции (с прибавленным sampBase)
-    uintptr_t fnAddEntry         = 0;
+    uintptr_t fnAddEntry              = 0;
     uintptr_t fnAddMessage            = 0;
     uintptr_t fnRegisterClientCommand = 0;
     uintptr_t fnSay                   = 0;
     uintptr_t fnSendCommand           = 0;
     uintptr_t fnShowDialog            = 0;
+    uintptr_t fnCNetGameConstructor   = 0; // <-- Добавили
 
     // Смещения внутри структур (относительные)
     uintptr_t offRakClientInterface = 0;

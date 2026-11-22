@@ -6,22 +6,38 @@
 #include <cstring>
 #include <cstdio>
 
-// nType= 2 - игроки | 4 - сервер | 8 - дебаг
 namespace CChatHook {
     using AddEntry_t = void(__thiscall*)(CChat*, int, const char*, const char*, uint32_t, uint32_t);
     AddEntry_t origAddEntry = nullptr;
 
     void __fastcall Hooked_AddEntry(CChat* pThis, void* /*edx*/, int nType, const char* szText, const char* szPrefix, uint32_t textColor, uint32_t prefixColor) {
-        if (!szText) {
+        if (nType != 8 || !szText) {
             origAddEntry(pThis, nType, szText, szPrefix, textColor, prefixColor);
             return;
         }
 
         char szTranslated[256] = { 0 };
         const char* outText = szText;
+        int outType = nType;
 
-        // Системные сообщения клиента обычно имеют nType == 2 (или 8 для debug)
-        if (strcmp(szText, "Connected. Joining the game...") == 0) {
+        if (strcmp(szText, "-> OnFoot position saved") == 0) {
+            outText = "-> Позиция пешком сохранена";
+        }
+        /*
+            TODO: Add hook for message: SA-MP 0.3.7 Started
+        */
+        else if (strcmp(szText, "SA-MP 0.3.7 Started") == 0) {
+            outText = "{FFFFFF}Client {B9C9BF}LibSAMP {FFFFFF}started";
+            outType = 4;
+        }
+        else if (strcmp(szText, "SA-MP 0.3.7-R3 Started") == 0) {
+            outText = "{FFFFFF}Client {B9C9BF}LibSAMP {FFFFFF}started";
+            outType = 4;
+        }
+        else if (strcmp(szText, "-> InCar position saved") == 0) {
+            outText = "-> Позиция в транспорте сохранена";
+        }
+        else if (strcmp(szText, "Connected. Joining the game...") == 0) {
             outText = "Подключено. Вход в игру...";
         }
         else if (strcmp(szText, "The server didn't respond. Retrying..") == 0) {
@@ -51,10 +67,6 @@ namespace CChatHook {
         else if (strcmp(szText, "I'm sorry, that's an invalid command.") == 0) {
             outText = "Извините, такой команды не существует.";
         }
-        else if (strncmp(szText, "SA-MP ", 6) == 0 && strstr(szText, "Started")) {
-            snprintf(szTranslated, sizeof(szTranslated), "SA-MP %s запущен (LibSamp)", Offsets::GetVersionName());
-            outText = szTranslated;
-        }
         else if (strncmp(szText, "Connecting to ", 14) == 0) {
             snprintf(szTranslated, sizeof(szTranslated), "Подключение к %s", szText + 14);
             outText = szTranslated;
@@ -68,7 +80,7 @@ namespace CChatHook {
             outText = szTranslated;
         }
 
-        origAddEntry(pThis, nType, outText, szPrefix, textColor, prefixColor);
+        origAddEntry(pThis, outType, outText, szPrefix, textColor, prefixColor);
     }
 
     void Install() {

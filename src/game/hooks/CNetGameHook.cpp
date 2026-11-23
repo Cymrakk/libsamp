@@ -42,28 +42,28 @@ namespace CNetGameHook {
         if (Core::pSettings) {
             const auto& cfg = Core::pSettings->GetReadOnly();
 
-            if (cfg.szHost != '\0') {
+            if (cfg.szHost[0] != '\0') {
                 host = cfg.szHost;
             }
             if (cfg.iPort > 0) {
                 serverPort = static_cast<unsigned short>(cfg.iPort);
             }
 
-            if (cfg.szNickName != '\0') {
+            if (cfg.szNickName[0] != '\0') {
                 CPlayerPool::SetLocalPlayerName(cfg.szNickName);
             }
 
-            if (cfg.szPassword != '\0') {
+            if (cfg.szPassword[0] != '\0') {
                 void** vtable = *reinterpret_cast<void***>(pThis);
-                if (vtable && vtable) {
-                    auto SetPassword = reinterpret_cast<RakSetPassword_t>(vtable);
+                if (vtable && vtable[3]) {
+                    auto SetPassword = reinterpret_cast<RakSetPassword_t>(vtable[3]);
                     SetPassword(pThis, cfg.szPassword);
                 }
             }
 
             uintptr_t netGame = reinterpret_cast<uintptr_t>(CNetGame::Get());
             if (netGame && Offsets::Addr.offHostOrIp && Offsets::Addr.offPort) {
-                if (cfg.szHost != '\0') {
+                if (cfg.szHost[0] != '\0') {
                     strncpy_s(
                         reinterpret_cast<char*>(netGame + Offsets::Addr.offHostOrIp),
                         257,
@@ -89,8 +89,8 @@ namespace CNetGameHook {
                 uintptr_t rakClient = *reinterpret_cast<uintptr_t*>(netGame + Offsets::Addr.offRakClientInterface);
                 if (rakClient) {
                     void** vtable = *reinterpret_cast<void***>(rakClient);
-                    if (vtable && vtable && vtable) {
-                        pTargetConnect = vtable;
+                    if (vtable && vtable[1] && vtable[3]) {
+                        pTargetConnect = vtable[1];
                         MH_STATUS status = MH_CreateHook(
                             pTargetConnect,
                             &ConnectedHook,

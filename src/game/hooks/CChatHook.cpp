@@ -60,8 +60,9 @@ namespace CChatHook {
             outText = "Извините, такой команды не существует.";
         }
         else if (strncmp(szText, "Connecting to ", 14) == 0) {
-            snprintf(szTranslated, sizeof(szTranslated), "Подключение к %s", szText + 14);
-            outText = szTranslated;
+            //outText = "Подключение к серверу...";         // IN RELEASE
+            snprintf(szTranslated, sizeof(szTranslated), "Подключение к %s", szText + 14);  // IN DEBUG
+            outText = szTranslated;                                                         // IN DEBUG
         }
         else if (strncmp(szText, "Connected to ", 13) == 0) {
             snprintf(szTranslated, sizeof(szTranslated), "Вы подключились к %s", szText + 13);

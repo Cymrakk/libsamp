@@ -112,7 +112,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 
         HMODULE hSamp = GetModuleHandleA("samp.dll");
         if (MH_Initialize() == MH_OK) {
-            MH_CreateHookApi(L"kernel32", "GetCommandLineA", &Core::Hooked_GetCommandLineA, reinterpret_cast<void**>(&Core::origGetCommandLineA));
             if (!hSamp) {
                 MH_CreateHookApi(L"kernel32", "LoadLibraryExW", &Core::Hooked_LoadLibraryExW, reinterpret_cast<void**>(&Core::origLoadLibraryExW));
             }

@@ -3,46 +3,37 @@
 #include "CLogger.h"
 #include "CSettings.h"
 #include "game/Offsets.h"
-#include "game/samp/CNetGame.h"
 #include <cstring>
 
-// Подтягиваем указатель на настройки из main.cpp
 namespace Core {
     extern CSettings* pSettings;
 }
 
 namespace CNetGameHook {
-    // Сигнатура конструктора CNetGame::__thiscall
-    using CNetGameCtor_t = CNetGame* (__thiscall*)(CNetGame*, const char*, int, const char*, const char*);
-    CNetGameCtor_t origCNetGameCtor = nullptr;
+    // Сигнатура InitSamp: void __cdecl InitSamp(const char* szHost, int iPort, const char* szNick, const char* szPass)
+    using InitSamp_t = void(__cdecl*)(const char*, int, const char*, const char*);
+    InitSamp_t origInitSamp = nullptr;
 
-    CNetGame* __fastcall Hooked_CNetGameCtor(
-        CNetGame* pThis,
-        void* /*edx*/,
+    void __cdecl ConnectedHook(
         const char* szHostOrIp,
         int iPort,
         const char* szPlayerName,
         const char* szPass
     ) {
-        CLogger::Log("!!! Hooked_CNetGameCtor TRIGGERED !!!");
+        CLogger::Log("ConnectedHook triggered! Original: %s:%d (%s)", szHostOrIp, iPort, szPlayerName);
 
         if (Core::pSettings) {
             const auto& cfg = Core::pSettings->GetReadOnly();
 
-            // Подменяем хост и порт, если они заданы в samp.ini
             if (cfg.szHost[0] != '\0') {
                 szHostOrIp = cfg.szHost;
             }
             if (cfg.iPort > 0) {
                 iPort = cfg.iPort;
             }
-
-            // Подменяем ник, если он задан в конфиге
             if (cfg.szNickName[0] != '\0') {
                 szPlayerName = cfg.szNickName;
             }
-
-            // Подменяем пароль (если в конфиге пусто — оставляем пустым или как передал лаунчер)
             if (cfg.szPassword[0] != '\0') {
                 szPass = cfg.szPassword;
             } else {
@@ -52,23 +43,28 @@ namespace CNetGameHook {
             CLogger::Log("Redirecting connection to %s:%d as %s", szHostOrIp, iPort, szPlayerName);
         }
 
-        return origCNetGameCtor(pThis, szHostOrIp, iPort, szPlayerName, szPass);
+        origInitSamp(szHostOrIp, iPort, szPlayerName, szPass);
     }
 
     void Install() {
-        if (!Offsets::Addr.fnCNetGameConstructor) return;
-
-        LPVOID target = reinterpret_cast<LPVOID>(Offsets::Addr.fnCNetGameConstructor);
-        if (MH_CreateHook(target, &Hooked_CNetGameCtor, reinterpret_cast<void**>(&origCNetGameCtor)) == MH_OK) {
-            MH_EnableHook(target);
-            CLogger::Log("CNetGameHook installed at 0x%X", Offsets::Addr.fnCNetGameConstructor);
-        } else {
-            CLogger::Log("Failed to install CNetGameHook!");
+        if (Offsets::Addr.fnInitSamp) {
+            LPVOID target = reinterpret_cast<LPVOID>(Offsets::Addr.fnInitSamp);
+            if (MH_CreateHook(target, &ConnectedHook, reinterpret_cast<void**>(&origInitSamp)) == MH_OK) {
+                MH_EnableHook(target);
+                CLogger::Log("CNetGameHook::ConnectedHook installed at 0x%X", Offsets::Addr.fnInitSamp);
+            } else {
+                CLogger::Log("Failed to install CNetGameHook::ConnectedHook!");
+            }
         }
+
+        // Сюда позже можно добавлять установку других хуков CNetGame
     }
 
     void Remove() {
-        if (!Offsets::Addr.fnCNetGameConstructor) return;
-        MH_DisableHook(reinterpret_cast<LPVOID>(Offsets::Addr.fnCNetGameConstructor));
+        if (Offsets::Addr.fnInitSamp) {
+            MH_DisableHook(reinterpret_cast<LPVOID>(Offsets::Addr.fnInitSamp));
+        }
+
+        // Сюда позже можно добавлять отключение других хуков CNetGame
     }
 }

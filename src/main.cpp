@@ -21,7 +21,8 @@ namespace Core {
     GetCommandLineA_t origGetCommandLineA = nullptr;
     std::string customCmdLine;
 
-    LPSTR WINAPI Hooked_GetCommandLineA() {
+    // OLD
+    /*LPSTR WINAPI Hooked_GetCommandLineA() {
         LPSTR orig = origGetCommandLineA();
         if (pSettings) {
             const auto& cfg = pSettings->GetReadOnly();
@@ -31,7 +32,7 @@ namespace Core {
             }
         }
         return orig;
-    }
+    }*/
 
     bool IsSampR1(uintptr_t base) {
         auto dos = reinterpret_cast<PIMAGE_DOS_HEADER>(base);

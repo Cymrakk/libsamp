@@ -43,12 +43,12 @@ namespace CNetGameHook {
     unsigned short g_TargetPort = 0;
 
     unsigned long ResolveIp(const char* host) {
-        if (!host || host == '\0') return INADDR_NONE;
+        if (!host || host[0] == '\0') return INADDR_NONE;
         unsigned long ip = inet_addr(host);
         if (ip == INADDR_NONE) {
             hostent* he = gethostbyname(host);
-            if (he && he->h_addr_list) {
-                ip = *reinterpret_cast<unsigned long*>(he->h_addr_list);
+            if (he && he->h_addr_list && he->h_addr_list[0]) {
+                ip = *reinterpret_cast<unsigned long*>(he->h_addr_list[0]);
             }
         }
         return ip;
@@ -118,7 +118,7 @@ namespace CNetGameHook {
                 g_OrigPort = serverPort;
             }
 
-            if (cfg.szHost != '\0') {
+            if (cfg.szHost[0] != '\0') {
                 host = cfg.szHost;
                 unsigned long tip = ResolveIp(cfg.szHost);
                 g_TargetIp = (tip != INADDR_NONE) ? tip : g_OrigIp;
@@ -129,22 +129,22 @@ namespace CNetGameHook {
             g_TargetPort = (cfg.iPort > 0) ? static_cast<unsigned short>(cfg.iPort) : g_OrigPort;
             if (cfg.iPort > 0) serverPort = g_TargetPort;
 
-            if (cfg.szPassword != '\0') {
+            if (cfg.szPassword[0] != '\0') {
                 void** vtable = *reinterpret_cast<void***>(pThis);
-                if (vtable && vtable) {
-                    reinterpret_cast<RakSetPassword_t>(vtable)(pThis, cfg.szPassword);
+                if (vtable && vtable[3]) {
+                    reinterpret_cast<RakSetPassword_t>(vtable[3])(pThis, cfg.szPassword);
                 }
             }
 
             uintptr_t netGame = reinterpret_cast<uintptr_t>(CNetGame::Get());
             if (netGame) {
-                if (Offsets::Addr.offHostOrIp && cfg.szHost != '\0') {
+                if (Offsets::Addr.offHostOrIp && cfg.szHost[0] != '\0') {
                     strncpy_s(reinterpret_cast<char*>(netGame + Offsets::Addr.offHostOrIp), 257, cfg.szHost, _TRUNCATE);
                 }
                 if (Offsets::Addr.offPort && cfg.iPort > 0) {
                     *reinterpret_cast<int*>(netGame + Offsets::Addr.offPort) = cfg.iPort;
                 }
-                if (cfg.szNickName != '\0' && Offsets::Addr.offPools && Offsets::Addr.offPlayerPool && Offsets::Addr.offLocalPlayerName) {
+                if (cfg.szNickName[0] != '\0' && Offsets::Addr.offPools && Offsets::Addr.offPlayerPool && Offsets::Addr.offLocalPlayerName) {
                     uintptr_t pools = *reinterpret_cast<uintptr_t*>(netGame + Offsets::Addr.offPools);
                     if (pools) {
                         uintptr_t playerPool = *reinterpret_cast<uintptr_t*>(pools + Offsets::Addr.offPlayerPool);
@@ -168,8 +168,8 @@ namespace CNetGameHook {
                 uintptr_t rakClient = *reinterpret_cast<uintptr_t*>(netGame + Offsets::Addr.offRakClientInterface);
                 if (rakClient) {
                     void** vtable = *reinterpret_cast<void***>(rakClient);
-                    if (vtable && vtable && vtable) {
-                        pTargetConnect = vtable;
+                    if (vtable && vtable[1] && vtable[3]) {
+                        pTargetConnect = vtable[1];
                         if (MH_CreateHook(pTargetConnect, &ConnectedHook, reinterpret_cast<void**>(&origRakConnect)) == MH_OK) {
                             MH_EnableHook(pTargetConnect);
                             CLogger::Log("CNetGameHook::ConnectedHook installed at 0x%p", pTargetConnect);

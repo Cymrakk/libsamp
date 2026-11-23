@@ -24,6 +24,8 @@ namespace CNetGameHook {
         const char* szPlayerName,
         const char* szPass
     ) {
+        CLogger::Log("!!! Hooked_CNetGameCtor TRIGGERED !!!");
+
         if (Core::pSettings) {
             const auto& cfg = Core::pSettings->GetReadOnly();
 

@@ -16,14 +16,16 @@ namespace CNetGameHook {
     using CNetGameCtor_t = CNetGame* (__thiscall*)(CNetGame*, const char*, int, const char*, const char*);
     CNetGameCtor_t origCNetGameCtor = nullptr;
 
-    CNetGame* __fastcall Hooked_CNetGameCtor(
+    CNetGame* __fastcall Hooked_CNetGameCtor(...) {
+        CLogger::Log("!!! Hooked_CNetGameCtor TRIGGERED !!!");
+
         CNetGame* pThis,
         void* /*edx*/,
         const char* szHostOrIp,
         int iPort,
         const char* szPlayerName,
         const char* szPass
-    ) {
+    {
         if (Core::pSettings) {
             const auto& cfg = Core::pSettings->GetReadOnly();
 

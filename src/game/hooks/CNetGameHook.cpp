@@ -4,6 +4,7 @@
 #include "CSettings.h"
 #include "game/Offsets.h"
 #include "game/samp/CNetGame.h"
+#include "game/samp/CPlayerPool.h"
 #include <windows.h>
 #include <cstring>
 
@@ -41,24 +42,28 @@ namespace CNetGameHook {
         if (Core::pSettings) {
             const auto& cfg = Core::pSettings->GetReadOnly();
 
-            if (cfg.szHost[0] != '\0') {
+            if (cfg.szHost != '\0') {
                 host = cfg.szHost;
             }
             if (cfg.iPort > 0) {
                 serverPort = static_cast<unsigned short>(cfg.iPort);
             }
 
-            if (cfg.szPassword[0] != '\0') {
+            if (cfg.szNickName != '\0') {
+                CPlayerPool::SetLocalPlayerName(cfg.szNickName);
+            }
+
+            if (cfg.szPassword != '\0') {
                 void** vtable = *reinterpret_cast<void***>(pThis);
-                if (vtable && vtable[3]) {
-                    auto SetPassword = reinterpret_cast<RakSetPassword_t>(vtable[3]);
+                if (vtable && vtable) {
+                    auto SetPassword = reinterpret_cast<RakSetPassword_t>(vtable);
                     SetPassword(pThis, cfg.szPassword);
                 }
             }
 
             uintptr_t netGame = reinterpret_cast<uintptr_t>(CNetGame::Get());
             if (netGame && Offsets::Addr.offHostOrIp && Offsets::Addr.offPort) {
-                if (cfg.szHost[0] != '\0') {
+                if (cfg.szHost != '\0') {
                     strncpy_s(
                         reinterpret_cast<char*>(netGame + Offsets::Addr.offHostOrIp),
                         257,
@@ -71,7 +76,7 @@ namespace CNetGameHook {
                 }
             }
 
-            CLogger::Log("Redirecting RakNet connection to %s:%u", host, serverPort);
+            CLogger::Log("Redirecting RakNet connection to %s:%u as %s", host, serverPort, CPlayerPool::GetLocalPlayerName());
         }
 
         return origRakConnect(pThis, host, serverPort, clientPort, depreciated, threadSleepTimer);
@@ -84,8 +89,8 @@ namespace CNetGameHook {
                 uintptr_t rakClient = *reinterpret_cast<uintptr_t*>(netGame + Offsets::Addr.offRakClientInterface);
                 if (rakClient) {
                     void** vtable = *reinterpret_cast<void***>(rakClient);
-                    if (vtable && vtable[1] && vtable[3]) {
-                        pTargetConnect = vtable[1];
+                    if (vtable && vtable && vtable) {
+                        pTargetConnect = vtable;
                         MH_STATUS status = MH_CreateHook(
                             pTargetConnect,
                             &ConnectedHook,

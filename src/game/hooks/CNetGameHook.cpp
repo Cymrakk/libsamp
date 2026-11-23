@@ -49,22 +49,19 @@ namespace CNetGameHook {
     void Install() {
         if (Offsets::Addr.fnInitSamp) {
             LPVOID target = reinterpret_cast<LPVOID>(Offsets::Addr.fnInitSamp);
-            if (MH_CreateHook(target, &ConnectedHook, reinterpret_cast<void**>(&origInitSamp)) == MH_OK) {
+            MH_STATUS status = MH_CreateHook(target, &ConnectedHook, reinterpret_cast<void**>(&origInitSamp));
+            if (status == MH_OK) {
                 MH_EnableHook(target);
                 CLogger::Log("CNetGameHook::ConnectedHook installed at 0x%X", Offsets::Addr.fnInitSamp);
             } else {
-                CLogger::Log("Failed to install CNetGameHook::ConnectedHook!");
+                CLogger::Log("Failed to install CNetGameHook::ConnectedHook! MH_STATUS = %d", status);
             }
         }
-
-        // Сюда позже можно добавлять установку других хуков CNetGame
     }
 
     void Remove() {
         if (Offsets::Addr.fnInitSamp) {
             MH_DisableHook(reinterpret_cast<LPVOID>(Offsets::Addr.fnInitSamp));
         }
-
-        // Сюда позже можно добавлять отключение других хуков CNetGame
     }
 }

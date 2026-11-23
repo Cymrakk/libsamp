@@ -23,11 +23,32 @@ namespace CNetGameHook {
         int threadSleepTimer
     );
     using RakSetPassword_t = void(__thiscall*)(void* pThis, const char* password);
-    using SetLocalPlayerName_t = void(__thiscall*)(uintptr_t pPlayerPool, const char* szName);
 
     RakConnect_t origRakConnect = nullptr;
     LPVOID pTargetConnect = nullptr;
     bool bStopThread = false;
+
+    void WriteSampStdString(uintptr_t addr, const char* newStr) {
+        size_t len = strlen(newStr);
+        if (len > 24) len = 24; // Лимит ника в SA-MP
+        if (len < 16) {
+            memcpy(reinterpret_cast<char*>(addr), newStr, len + 1);
+            *reinterpret_cast<size_t*>(addr + 16) = len;
+            *reinterpret_cast<size_t*>(addr + 20) = 15;
+        } else {
+            // Используем CRT malloc из игры (msvcrt), чтобы не было краша при освобождении
+            using malloc_t = void* (__cdecl*)(size_t);
+            HMODULE hCrt = GetModuleHandleA("msvcrt.dll");
+            auto gameMalloc = hCrt ? reinterpret_cast<malloc_t>(GetProcAddress(hCrt, "malloc")) : nullptr;
+            char* buf = gameMalloc ? reinterpret_cast<char*>(gameMalloc(len + 1)) : nullptr;
+            if (buf) {
+                memcpy(buf, newStr, len + 1);
+                *reinterpret_cast<char**>(addr) = buf;
+                *reinterpret_cast<size_t*>(addr + 16) = len;
+                *reinterpret_cast<size_t*>(addr + 20) = len;
+            }
+        }
+    }
 
     bool __fastcall ConnectedHook(
         void* pThis,
@@ -59,13 +80,12 @@ namespace CNetGameHook {
                 if (Offsets::Addr.offPort && cfg.iPort > 0) {
                     *reinterpret_cast<int*>(netGame + Offsets::Addr.offPort) = cfg.iPort;
                 }
-                if (cfg.szNickName[0] != '\0' && Offsets::Addr.offPools && Offsets::Addr.offPlayerPool) {
+                if (cfg.szNickName[0] != '\0' && Offsets::Addr.offPools && Offsets::Addr.offPlayerPool && Offsets::Addr.offLocalPlayerName) {
                     uintptr_t pools = *reinterpret_cast<uintptr_t*>(netGame + Offsets::Addr.offPools);
                     if (pools) {
                         uintptr_t playerPool = *reinterpret_cast<uintptr_t*>(pools + Offsets::Addr.offPlayerPool);
-                        uintptr_t sampBase = reinterpret_cast<uintptr_t>(GetModuleHandleA("samp.dll"));
-                        if (playerPool && sampBase) {
-                            reinterpret_cast<SetLocalPlayerName_t>(sampBase + 0xA890)(playerPool, cfg.szNickName);
+                        if (playerPool) {
+                            WriteSampStdString(playerPool + Offsets::Addr.offLocalPlayerName, cfg.szNickName);
                         }
                     }
                 }

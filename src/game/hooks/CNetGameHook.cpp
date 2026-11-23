@@ -4,7 +4,6 @@
 #include "CSettings.h"
 #include "game/Offsets.h"
 #include "game/samp/CNetGame.h"
-#include "game/samp/CPlayerPool.h"
 #include <windows.h>
 #include <cstring>
 
@@ -49,10 +48,6 @@ namespace CNetGameHook {
                 serverPort = static_cast<unsigned short>(cfg.iPort);
             }
 
-            if (cfg.szNickName[0] != '\0') {
-                CPlayerPool::SetLocalPlayerName(cfg.szNickName);
-            }
-
             if (cfg.szPassword[0] != '\0') {
                 void** vtable = *reinterpret_cast<void***>(pThis);
                 if (vtable && vtable[3]) {
@@ -76,7 +71,7 @@ namespace CNetGameHook {
                 }
             }
 
-            CLogger::Log("Redirecting RakNet connection to %s:%u as %s", host, serverPort, CPlayerPool::GetLocalPlayerName());
+            CLogger::Log("Redirecting RakNet connection to %s:%u", host, serverPort);
         }
 
         return origRakConnect(pThis, host, serverPort, clientPort, depreciated, threadSleepTimer);

@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include <cwchar>
+#include <string>
 #include "MinHook.h"
 #include "CSettings.h"
 #include "CLogger.h"
@@ -15,6 +16,22 @@ namespace Core {
 
     using LoadLibraryExW_t = HMODULE(WINAPI*)(LPCWSTR, HANDLE, DWORD);
     LoadLibraryExW_t origLoadLibraryExW = nullptr;
+
+    using GetCommandLineA_t = LPSTR(WINAPI*)();
+    GetCommandLineA_t origGetCommandLineA = nullptr;
+    std::string customCmdLine;
+
+    LPSTR WINAPI Hooked_GetCommandLineA() {
+        LPSTR orig = origGetCommandLineA();
+        if (pSettings) {
+            const auto& cfg = pSettings->GetReadOnly();
+            if (cfg.szNickName[0] != '\0') {
+                customCmdLine = std::string(orig) + " -n " + cfg.szNickName;
+                return const_cast<LPSTR>(customCmdLine.c_str());
+            }
+        }
+        return orig;
+    }
 
     bool IsSampR1(uintptr_t base) {
         auto dos = reinterpret_cast<PIMAGE_DOS_HEADER>(base);
@@ -48,11 +65,6 @@ namespace Core {
 
         CLogger::Log("Detected SA-MP version: %s", Offsets::GetVersionName());
 
-        CLogger::Log("Loading settings...");
-        pSettings = new CSettings();
-
-        const auto& cfg = pSettings->GetReadOnly();
-        CLogger::Log("Settings loaded!");
         Hooks::Init();
         CLogger::Log("All Hooks set up!");
     }
@@ -93,16 +105,22 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
         CLogger::Log("GitHub: https://github.com");
         CLogger::Log(" ");
 
+        CLogger::Log("Loading settings...");
+        Core::pSettings = new CSettings();
+        CLogger::Log("Settings loaded!");
+
         HMODULE hSamp = GetModuleHandleA("samp.dll");
+        if (MH_Initialize() == MH_OK) {
+            MH_CreateHookApi(L"kernel32", "GetCommandLineA", &Core::Hooked_GetCommandLineA, reinterpret_cast<void**>(&Core::origGetCommandLineA));
+            if (!hSamp) {
+                MH_CreateHookApi(L"kernel32", "LoadLibraryExW", &Core::Hooked_LoadLibraryExW, reinterpret_cast<void**>(&Core::origLoadLibraryExW));
+            }
+            MH_EnableHook(MH_ALL_HOOKS);
+        }
+
         if (hSamp) {
             HANDLE hThread = CreateThread(nullptr, 0, Core::InitThread, hSamp, 0, nullptr);
             if (hThread) CloseHandle(hThread);
-            return TRUE;
-        }
-
-        if (MH_Initialize() == MH_OK) {
-            MH_CreateHookApi(L"kernel32", "LoadLibraryExW", &Core::Hooked_LoadLibraryExW, reinterpret_cast<void**>(&Core::origLoadLibraryExW));
-            MH_EnableHook(MH_ALL_HOOKS);
         }
     }
     else if (reason == DLL_PROCESS_DETACH) {
@@ -118,6 +136,3 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
     }
     return TRUE;
 }
-
-
-

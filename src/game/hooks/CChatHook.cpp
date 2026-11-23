@@ -26,14 +26,6 @@ namespace CChatHook {
         /*
             TODO: Add hook for message: SA-MP 0.3.7 Started
         */
-        else if (strcmp(szText, "SA-MP 0.3.7 Started") == 0) {
-            outText = "{FFFFFF}Client {B9C9BF}LibSAMP {FFFFFF}started";
-            outType = 4;
-        }
-        else if (strcmp(szText, "SA-MP 0.3.7-R3 Started") == 0) {
-            outText = "{FFFFFF}Client {B9C9BF}LibSAMP {FFFFFF}started";
-            outType = 4;
-        }
         else if (strcmp(szText, "-> InCar position saved") == 0) {
             outText = "-> Позиция в транспорте сохранена";
         }

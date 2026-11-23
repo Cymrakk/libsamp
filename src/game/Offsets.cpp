@@ -25,16 +25,21 @@ namespace Offsets {
             Addr.pDialogInfo = sampBase + 0x21A0B8;
 
             // Функции (R1)
-            Addr.fnAddEntry                 = sampBase + 0x64010;
+            Addr.fnAddEntry              = sampBase + 0x64010;
             Addr.fnAddMessage            = sampBase + 0x645A0;
             Addr.fnRegisterClientCommand = sampBase + 0x65AD0;
             Addr.fnSay                   = sampBase + 0x57F0;
             Addr.fnSendCommand           = sampBase + 0x65C60;
-            Addr.fnShowDialog          = sampBase + 0x6B9C0;
-            Addr.fnInitSamp = sampBase + 0x25A060; // <-- Реальный адрес инициализации CNetGame в R1
+            Addr.fnShowDialog            = sampBase + 0x6B9C0;
+            Addr.fnSetLocalPlayerName    = sampBase + 0x10B90;
+
             // Смещения структур (R1)
             Addr.offRakClientInterface = 0x3C9;
             Addr.offPools              = 0x3CD;
+            Addr.offHostOrIp           = 0x20;
+            Addr.offPort               = 0x225;
+            Addr.offPlayerPool         = 0x18;
+            Addr.offLocalPlayerName    = 0xA;
 
             return true;
         }
@@ -49,17 +54,21 @@ namespace Offsets {
             Addr.pDialogInfo = sampBase + 0x26E898;
 
             // Функции (R3-1)
-            Addr.fnAddEntry        = sampBase + 0x67460;
+            Addr.fnAddEntry              = sampBase + 0x67460;
             Addr.fnAddMessage            = sampBase + 0x679F0;
             Addr.fnRegisterClientCommand = sampBase + 0x69000;
             Addr.fnSay                   = sampBase + 0x5820;
             Addr.fnSendCommand           = sampBase + 0x691B0;
-            Addr.fnShowDialog          = sampBase + 0x6F8C0;
-            Addr.fnInitSamp = sampBase + 0x2959B0; // <-- Реальный адрес инициализации CNetGame в R3-1
+            Addr.fnShowDialog            = sampBase + 0x6F8C0;
+            Addr.fnSetLocalPlayerName    = sampBase + 0x13D90;
 
             // Смещения структур (R3-1)
             Addr.offRakClientInterface = 0x2C;
             Addr.offPools              = 0x3DE;
+            Addr.offHostOrIp           = 0x30;
+            Addr.offPort               = 0x235;
+            Addr.offPlayerPool         = 0x8;
+            Addr.offLocalPlayerName    = 0x14;
 
             return true;
         }

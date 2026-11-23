@@ -22,11 +22,15 @@ struct stOffsets {
     uintptr_t fnSay                   = 0;
     uintptr_t fnSendCommand           = 0;
     uintptr_t fnShowDialog            = 0;
-    uintptr_t fnInitSamp              = 0; // <-- Заменили
+    uintptr_t fnSetLocalPlayerName    = 0;
 
     // Смещения внутри структур (относительные)
     uintptr_t offRakClientInterface = 0;
     uintptr_t offPools              = 0;
+    uintptr_t offHostOrIp           = 0;
+    uintptr_t offPort               = 0;
+    uintptr_t offPlayerPool         = 0;
+    uintptr_t offLocalPlayerName    = 0;
 };
 
 namespace Offsets {

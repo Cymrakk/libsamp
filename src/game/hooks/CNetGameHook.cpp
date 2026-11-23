@@ -29,28 +29,38 @@ namespace CNetGameHook {
     );
     using RakSetPassword_t = void(__thiscall*)(void* pThis, const char* password);
     using sendto_t = int(WSAAPI*)(SOCKET, const char*, int, int, const struct sockaddr*, int);
+    using recvfrom_t = int(WSAAPI*)(SOCKET, char*, int, int, struct sockaddr*, int*);
 
     RakConnect_t origRakConnect = nullptr;
     sendto_t origSendTo = nullptr;
+    recvfrom_t origRecvFrom = nullptr;
     LPVOID pTargetConnect = nullptr;
     bool bStopThread = false;
 
-    // Исходный адрес сервера, который подменяем на уровне UDP
     unsigned long g_OrigIp = 0;
     unsigned short g_OrigPort = 0;
+    unsigned long g_TargetIp = 0;
+    unsigned short g_TargetPort = 0;
 
-    // Безопасная перезапись MSVC std::string (24 байта) в памяти SA-MP
+    unsigned long ResolveIp(const char* host) {
+        if (!host || host == '\0') return INADDR_NONE;
+        unsigned long ip = inet_addr(host);
+        if (ip == INADDR_NONE) {
+            hostent* he = gethostbyname(host);
+            if (he && he->h_addr_list) {
+                ip = *reinterpret_cast<unsigned long*>(he->h_addr_list);
+            }
+        }
+        return ip;
+    }
+
     void WriteSampStdString(uintptr_t addr, const char* newStr) {
         size_t len = strlen(newStr);
-        size_t capacity = *reinterpret_cast<size_t*>(addr + 20);
-        char* oldPtr = (capacity >= 16) ? *reinterpret_cast<char**>(addr) : nullptr;
-
         if (len < 16) {
             memcpy(reinterpret_cast<char*>(addr), newStr, len + 1);
             *reinterpret_cast<size_t*>(addr + 16) = len;
             *reinterpret_cast<size_t*>(addr + 20) = 15;
         } else {
-            // Выделяем буфер через HeapAlloc процесса, чтобы SA-MP мог безопасно его читать
             char* buf = reinterpret_cast<char*>(HeapAlloc(GetProcessHeap(), 0, len + 1));
             if (buf) {
                 memcpy(buf, newStr, len + 1);
@@ -62,31 +72,32 @@ namespace CNetGameHook {
     }
 
     int WSAAPI Hooked_sendto(SOCKET s, const char* buf, int len, int flags, const struct sockaddr* to, int tolen) {
-        if (to && to->sa_family == AF_INET && Core::pSettings && g_OrigPort != 0) {
-            const auto& cfg = Core::pSettings->GetReadOnly();
+        if (to && to->sa_family == AF_INET && g_OrigPort != 0 && g_TargetPort != 0) {
             const sockaddr_in* sin = reinterpret_cast<const sockaddr_in*>(to);
-
             if (sin->sin_port == htons(g_OrigPort) && (g_OrigIp == 0 || sin->sin_addr.s_addr == g_OrigIp)) {
                 sockaddr_in redirected = *sin;
-                if (cfg.szHost[0] != '\0') {
-                    unsigned long newIp = inet_addr(cfg.szHost);
-                    if (newIp == INADDR_NONE) {
-                        hostent* he = gethostbyname(cfg.szHost);
-                        if (he && he->h_addr_list[0]) {
-                            newIp = *reinterpret_cast<unsigned long*>(he->h_addr_list[0]);
-                        }
-                    }
-                    if (newIp != INADDR_NONE) {
-                        redirected.sin_addr.s_addr = newIp;
-                    }
+                if (g_TargetIp != INADDR_NONE && g_TargetIp != 0) {
+                    redirected.sin_addr.s_addr = g_TargetIp;
                 }
-                if (cfg.iPort > 0) {
-                    redirected.sin_port = htons(static_cast<unsigned short>(cfg.iPort));
-                }
+                redirected.sin_port = htons(g_TargetPort);
                 return origSendTo(s, buf, len, flags, reinterpret_cast<const sockaddr*>(&redirected), sizeof(redirected));
             }
         }
         return origSendTo(s, buf, len, flags, to, tolen);
+    }
+
+    int WSAAPI Hooked_recvfrom(SOCKET s, char* buf, int len, int flags, struct sockaddr* from, int* fromlen) {
+        int ret = origRecvFrom(s, buf, len, flags, from, fromlen);
+        if (ret > 0 && from && from->sa_family == AF_INET && g_OrigPort != 0 && g_TargetPort != 0) {
+            sockaddr_in* sin = reinterpret_cast<sockaddr_in*>(from);
+            if (sin->sin_port == htons(g_TargetPort) && (g_TargetIp == 0 || sin->sin_addr.s_addr == g_TargetIp)) {
+                if (g_OrigIp != 0) {
+                    sin->sin_addr.s_addr = g_OrigIp;
+                }
+                sin->sin_port = htons(g_OrigPort);
+            }
+        }
+        return ret;
     }
 
     bool __fastcall ConnectedHook(
@@ -101,36 +112,39 @@ namespace CNetGameHook {
         if (Core::pSettings) {
             const auto& cfg = Core::pSettings->GetReadOnly();
 
-            // Запоминаем исходный IP и порт при первом подключении
             if (g_OrigPort == 0 && host && serverPort > 0) {
-                g_OrigIp = inet_addr(host);
-                if (g_OrigIp == INADDR_NONE) g_OrigIp = 0;
+                unsigned long ip = ResolveIp(host);
+                g_OrigIp = (ip != INADDR_NONE) ? ip : 0;
                 g_OrigPort = serverPort;
             }
 
-            if (cfg.szHost[0] != '\0') host = cfg.szHost;
-            if (cfg.iPort > 0) serverPort = static_cast<unsigned short>(cfg.iPort);
+            if (cfg.szHost != '\0') {
+                host = cfg.szHost;
+                unsigned long tip = ResolveIp(cfg.szHost);
+                g_TargetIp = (tip != INADDR_NONE) ? tip : g_OrigIp;
+            } else {
+                g_TargetIp = g_OrigIp;
+            }
 
-            // Пароль сервера
-            if (cfg.szPassword[0] != '\0') {
+            g_TargetPort = (cfg.iPort > 0) ? static_cast<unsigned short>(cfg.iPort) : g_OrigPort;
+            if (cfg.iPort > 0) serverPort = g_TargetPort;
+
+            if (cfg.szPassword != '\0') {
                 void** vtable = *reinterpret_cast<void***>(pThis);
-                if (vtable && vtable[3]) {
-                    reinterpret_cast<RakSetPassword_t>(vtable[3])(pThis, cfg.szPassword);
+                if (vtable && vtable) {
+                    reinterpret_cast<RakSetPassword_t>(vtable)(pThis, cfg.szPassword);
                 }
             }
 
             uintptr_t netGame = reinterpret_cast<uintptr_t>(CNetGame::Get());
             if (netGame) {
-                // Обновляем IP и порт в структуре CNetGame
-                if (Offsets::Addr.offHostOrIp && cfg.szHost[0] != '\0') {
+                if (Offsets::Addr.offHostOrIp && cfg.szHost != '\0') {
                     strncpy_s(reinterpret_cast<char*>(netGame + Offsets::Addr.offHostOrIp), 257, cfg.szHost, _TRUNCATE);
                 }
                 if (Offsets::Addr.offPort && cfg.iPort > 0) {
                     *reinterpret_cast<int*>(netGame + Offsets::Addr.offPort) = cfg.iPort;
                 }
-
-                // Перезаписываем ник прямо в памяти CPlayerPool
-                if (cfg.szNickName[0] != '\0' && Offsets::Addr.offPools && Offsets::Addr.offPlayerPool && Offsets::Addr.offLocalPlayerName) {
+                if (cfg.szNickName != '\0' && Offsets::Addr.offPools && Offsets::Addr.offPlayerPool && Offsets::Addr.offLocalPlayerName) {
                     uintptr_t pools = *reinterpret_cast<uintptr_t*>(netGame + Offsets::Addr.offPools);
                     if (pools) {
                         uintptr_t playerPool = *reinterpret_cast<uintptr_t*>(pools + Offsets::Addr.offPlayerPool);
@@ -154,8 +168,8 @@ namespace CNetGameHook {
                 uintptr_t rakClient = *reinterpret_cast<uintptr_t*>(netGame + Offsets::Addr.offRakClientInterface);
                 if (rakClient) {
                     void** vtable = *reinterpret_cast<void***>(rakClient);
-                    if (vtable && vtable[1] && vtable[3]) {
-                        pTargetConnect = vtable[1];
+                    if (vtable && vtable && vtable) {
+                        pTargetConnect = vtable;
                         if (MH_CreateHook(pTargetConnect, &ConnectedHook, reinterpret_cast<void**>(&origRakConnect)) == MH_OK) {
                             MH_EnableHook(pTargetConnect);
                             CLogger::Log("CNetGameHook::ConnectedHook installed at 0x%p", pTargetConnect);
@@ -171,6 +185,7 @@ namespace CNetGameHook {
 
     void Install() {
         MH_CreateHookApi(L"ws2_32", "sendto", &Hooked_sendto, reinterpret_cast<void**>(&origSendTo));
+        MH_CreateHookApi(L"ws2_32", "recvfrom", &Hooked_recvfrom, reinterpret_cast<void**>(&origRecvFrom));
         MH_EnableHook(MH_ALL_HOOKS);
 
         bStopThread = false;
